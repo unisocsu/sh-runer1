@@ -1,6 +1,7 @@
 package com.example.shellrunner;
 
-import android.app.Activity;
+import androidx.appcompat.app.AppCompatActivity;
+
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -20,7 +21,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
 
     private TextView tvCurrentPath;
     private ListView fileListView;
@@ -88,6 +89,22 @@ public class MainActivity extends Activity {
             } else {
                 appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
             }
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 101 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
+            appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 102 && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
         }
     }
 
