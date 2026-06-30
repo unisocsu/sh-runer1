@@ -1,0 +1,25 @@
+// הגדרת כלי הבנייה של אנדרואיד (Android Gradle Plugin)
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // גרסה 8.0 ומעלה של ה-Plugin מתאימה לעבודה עם Java 17 ב-GitHub Actions 
+        // ומסוגלת לקמפל גם עבור מכשירי קצה ישנים (minSdk 19)
+        classpath 'com.android.tools.build:gradle:8.1.0'
+    }
+}
+
+// הגדרת מאגרי ההורדה עבור כל התתי-פרויקטים (כמו תיקיית app)
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+// מחיקת תיקיית ה-build הראשית בעת הרצת `./gradlew clean`
+tasks.register('clean', Delete) {
+    delete rootProject.buildDir
+}
