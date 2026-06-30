@@ -1,0 +1,46 @@
+name: Android CI Build
+
+# מתי ה-Workflow ירוץ (בכל Push או Pull Request לענף הראשי)
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    # הרצה על שרת אובונטו עדכני של גיטהאב
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. הורדת קוד המקור של הפרויקט מה-Repository לשרת הבנייה
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    # 2. התקנת סביבת Java (JDK 17 מתאימה ל-Gradle מודרני שמקמפל לאנדרואיד ישן)
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    # 3. הגדרת ה-Gradle Wrapper והורדה אוטומטית שלו
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        # כאן ה-Action מנהל לבד את קבצי ה-gradlew ואת ה-Cache של הספריות
+
+    # 4. מתן הרשאות הרצה לקובץ ה-gradlew (חובה עבור שרתי Linux)
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    # 5. הרצת הקומפילציה ויצירת קובץ ה-APK
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug
+
+    # 6. העלאת קובץ ה-APK המוכן כדי שתוכל להוריד אותו מה-GitHub Actions
+    - name: Upload Artifact APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: ShellRunner-Debug-APK
+        path: app/build/outputs/apk/debug/app-debug.apk
