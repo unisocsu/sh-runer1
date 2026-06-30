@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#121212"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvCurrentPath"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="נתיב נוכחי: /"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textDirection="ltr"
+        android:layout_marginBottom="8dp" />
+
+    <ListView
+        android:id="@+id/fileListView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:choiceMode="singleChoice"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:divider="#2C2C2C"
+        android:dividerHeight="1dp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#333333"
+        android:layout_topMargin="8dp"
+        android:layout_bottomMargin="8dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="פלט מסוף פנימי:"
+        android:textColor="#00FF00"
+        android:textSize="12sp"
+        android:layout_marginBottom="4dp" />
+
+    <ScrollView
+        android:id="@+id/terminalScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#000000"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/tvTerminalOutput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="המסוף מוכן להרצת סקריפט...\n"
+            android:textColor="#00FF00"
+            android:fontFamily="monospace"
+            android:textSize="13sp"
+            android:textDirection="ltr" />
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="סוג מסוף: "
+            android:textColor="#FFFFFF" />
+
+        <RadioGroup
+            android:id="@+id/rgTerminalType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/rbInternal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="פנימי"
+                android:textColor="#FFFFFF"
+                android:checked="true"
+                android:layout_marginEnd="16dp" />
+
+            <RadioButton
+                android:id="@+id/rbExternal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="חיצוני (Termux)"
+                android:textColor="#FFFFFF" />
+        </RadioGroup>
+    </LinearLayout>
+
+</LinearLayout>
