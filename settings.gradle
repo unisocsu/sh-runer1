@@ -1,0 +1,21 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+// הגדרת שם הפרויקט הראשי
+rootProject.name = "ShellRunner"
+
+// הכללת מודול האפליקציה (תיקיית app) בתהליך הבנייה
+include ':app'
