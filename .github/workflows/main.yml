@@ -20,10 +20,13 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle/Wrapper Creator
+    # תיקון כאן: אנחנו מאלצים את התוסף להתקין גרסת Gradle תואמת (8.5) על השרת
+    - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.5'
 
-    # תיקון כאן: הוספת דגל הגרסה --gradle-version
+    # כעת הפקודה תרוץ על בסיס גרסה 8.5 ולא תזרוק שגיאת תאימות
     - name: Generate Gradle Wrapper
       run: gradle wrapper --gradle-version 8.5
 
