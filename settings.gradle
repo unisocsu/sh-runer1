@@ -14,8 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-// הגדרת שם הפרויקט הראשי
 rootProject.name = "ShellRunner"
-
-// הכללת מודול האפליקציה (תיקיית app) בתהליך הבנייה
 include ':app'
