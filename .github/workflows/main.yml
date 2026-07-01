@@ -20,9 +20,13 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # תיקון כאן: הורדנו את ה-with הריק כדי שלא יזרוק שגיאת מבנה
-    - name: Setup Gradle
+    # שלב חדש: התקנת Gradle על השרת לצורך יצירת ה-Wrapper
+    - name: Setup Gradle/Wrapper Creator
       uses: gradle/actions/setup-gradle@v4
+
+    # שלב חדש: יצירת קובץ ה-gradlew מאפס
+    - name: Generate Gradle Wrapper
+      run: gradle wrapper
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
