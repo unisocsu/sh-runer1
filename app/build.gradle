@@ -3,25 +3,15 @@ plugins {
 }
 
 android {
-    // תיקוח כאן: הגדרת ה-namespace עבור גרסאות Gradle 8+
     namespace "com.example.shellrunner"
-
-    // מומלץ לקמפל מול SDK גבוה כדי להשתמש בכלי בנייה מודרניים,
-    // אך ה-minSdk הוא זה שקובע היכן האפליקציה תרוץ.
     compileSdk 34
 
     defaultConfig {
         applicationId "com.example.shellrunner"
-        
-        // הגדרת תמיכה מינימלית באנדרואיד 4.4 (API 19)
         minSdk 19
         targetSdk 34
-        
         versionCode 1
         versionName "1.0"
-
-        // מאפשר תמיכה בריבוי קבצי דקס (MultiDex) - נדרש באנדרואיד 4.4 
-        // אם האפליקציה עוברת את מגבלת 64K המתודות עקב ספריות חיצוניות.
         multiDexEnabled true
     }
 
@@ -32,7 +22,6 @@ android {
         }
     }
 
-    // הגדרת תאימות לקוד Java 8 - חובה לתמיכה לאחור במכשירים ישנים
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -40,9 +29,6 @@ android {
 }
 
 dependencies {
-    // ספריית MultiDex הרשמית של גוגל עבור מכשירים מתחת לאנדרואיד 5.0 (API 21)
     implementation 'androidx.multidex:multidex:2.0.1'
-    
-    // ספריות עזר בסיסיות (אם תרצה להשתמש ברכיבים מודרניים יותר עם תאימות לאחור)
     implementation 'androidx.appcompat:appcompat:1.2.0'
 }
