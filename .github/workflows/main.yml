@@ -20,13 +20,12 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # שלב חדש: התקנת Gradle על השרת לצורך יצירת ה-Wrapper
     - name: Setup Gradle/Wrapper Creator
       uses: gradle/actions/setup-gradle@v4
 
-    # שלב חדש: יצירת קובץ ה-gradlew מאפס
+    # תיקון כאן: הוספת דגל הגרסה --gradle-version
     - name: Generate Gradle Wrapper
-      run: gradle wrapper
+      run: gradle wrapper --gradle-version 8.5
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
