@@ -3,22 +3,16 @@ plugins {
 }
 
 android {
-    // הגדרת ה-namespace חובה בגרדל 8+
+    // הגדרת ה-namespace חובה בגרדל 8
     namespace "com.example.shellrunner"
     compileSdk 34
 
     defaultConfig {
         applicationId "com.example.shellrunner"
-        
-        // הגדרת תמיכה מינימלית באנדרואיד 4.4 (API 19)
-        minSdk 19
+        minSdk 21
         targetSdk 34
-        
         versionCode 1
         versionName "1.0"
-
-        // מאפשר תמיכה בריבוי קבצי דקס (MultiDex)
-        multiDexEnabled true
     }
 
     buildTypes {
@@ -36,6 +30,7 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.multidex:multidex:2.0.1'
-    implementation 'androidx.appcompat:appcompat:1.2.0'
+    // ספריות מעודכנות שתואמות לחלוטין ל-Gradle 8 ול-Java 17
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
 }
