@@ -11,14 +11,6 @@ buildscript {
     }
 }
 
-// הגדרת מאגרי ההורדה עבור כל התתי-פרויקטים (כמו תיקיית app)
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
 // מחיקת תיקיית ה-build הראשית בעת הרצת `./gradlew clean`
 tasks.register('clean', Delete) {
     delete rootProject.buildDir
