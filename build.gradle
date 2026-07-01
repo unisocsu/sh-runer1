@@ -1,4 +1,4 @@
-// הגדרת גרסאות ה-Plugins המרכזיות של הפרויקט
+// הגדרת גרסאות כלי הבנייה בצורה מודרנית התואמת ל-settings.gradle
 plugins {
     id 'com.android.application' version '8.1.0' apply false
     id 'com.android.library' version '8.1.0' apply false
