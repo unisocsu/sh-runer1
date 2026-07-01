@@ -3,6 +3,9 @@ plugins {
 }
 
 android {
+    // תיקוח כאן: הגדרת ה-namespace עבור גרסאות Gradle 8+
+    namespace "com.example.shellrunner"
+
     // מומלץ לקמפל מול SDK גבוה כדי להשתמש בכלי בנייה מודרניים,
     // אך ה-minSdk הוא זה שקובע היכן האפליקציה תרוץ.
     compileSdk 34
