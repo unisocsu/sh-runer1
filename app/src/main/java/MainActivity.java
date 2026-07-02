@@ -1,8 +1,7 @@
 package com.example.shellrunner;
 
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.content.Context; // הוסף עבור MultiDex
+import android.app.Activity; // שינוי: ירושה מ-Activity רגיל של המערכת
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -11,6 +10,8 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
 import android.view.KeyEvent;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.RadioButton;
@@ -22,7 +23,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity { // תוקן מ-AppCompatActivity ל-Activity
 
     private TextView tvCurrentPath;
     private ListView fileListView;
@@ -37,11 +38,10 @@ public class MainActivity extends AppCompatActivity {
     private List<String> fileNames = new ArrayList<>();
     private ArrayAdapter<String> adapter;
 
-    // --- הוספה קריטית עבור אנדרואיד 4.4 ומטה ---
     @Override
     protected void attachBaseContext(Context newBase) {
         super.attachBaseContext(newBase);
-        // טעינת ה-MultiDex ידנית בזמן עליית האפליקציה
+        // טעינת ה-MultiDex ידנית בזמן עליית האפליקציה (קריטי לאנדרואיד 4.4 ומטה)
         androidx.multidex.MultiDex.install(this);
     }
 
@@ -68,8 +68,13 @@ public class MainActivity extends AppCompatActivity {
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_activated_1, fileNames);
         fileListView.setAdapter(adapter);
 
-        // מאזין ללחיצות רגילות (גיבוי למקשים)
-        fileListView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
+        // תוקן: הסרת הלמדא לטובת מימוש אנונימי קלאסי שיציב ב-Android 4.4
+        fileListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                handleSelection(position);
+            }
+        });
 
         // בדיקת הרשאות וטעינה
         checkStoragePermissions();
