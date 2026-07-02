@@ -66,15 +66,28 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="10dp">
+        android:layout_marginTop="10dp"
+        android:weightSum="2">
 
         <Button
             android:id="@+id/btnToggleView"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="48dp"
-            android:text="החלף לתצוגת רשת (Grid)"
+            android:layout_weight="1"
+            android:text="תצוגת רשת (Grid)"
             android:textColor="#FFFFFF"
-            android:background="@android:drawable/btn_default" />
+            android:background="@android:drawable/btn_default"
+            android:layout_marginRight="4dp"/>
+
+        <Button
+            android:id="@+id/btnTerminalSettings"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="הגדרות צבעים"
+            android:textColor="#FFFFFF"
+            android:background="@android:drawable/btn_default"
+            android:layout_marginLeft="4dp"/>
     </LinearLayout>
 
 </LinearLayout>
