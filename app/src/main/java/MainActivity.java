@@ -128,18 +128,35 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // פתיחת קובץ ה-sh בכל אפליקציה שמצהירה על עצמה כמסוף/מציגת קבצים חיצונית
+    // פתיחת קובץ ה-sh בצורה חכמה וממוקדת במסופים חיצוניים במכשיר
     private void executeInAnyExternalTerminal(File file) {
         Intent intent = new Intent(Intent.ACTION_VIEW);
-        Uri fileUri = Uri.fromFile(file);
-        intent.setDataAndType(fileUri, "text/plain"); // או application/x-sh בהתאם לתמיכת המערכת
+        Uri fileUri;
+
+        // התאמת ה-Uri לפי גרסת האנדרואיד למניעת חסימות אבטחה (FileUriExposedException)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            fileUri = androidx.core.content.FileProvider.getUriForFile(this, 
+                    getPackageName() + ".fileprovider", file);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } else {
+            fileUri = Uri.fromFile(file);
+        }
+
+        // הגדרת סוג התוכן הרשמי של סקריפט מעטפת (Shell Script)
+        intent.setDataAndType(fileUri, "application/x-sh");
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         
         try {
-            // המערכת תפתח תפריט בחירה "Open With" בין כל אפליקציות הטרמינל/עורכים שקיימים במכשיר
+            // המערכת תפתח תפריט בחירה ממוקד המציג רק אפליקציות מסוף ופיתוח
             startActivity(Intent.createChooser(intent, "בחר אפליקציית מסוף להרצה:"));
         } catch (Exception e) {
-            Toast.makeText(this, "לא נמצא מסוף חיצוני תומך במכשיר זה", Toast.LENGTH_SHORT).show();
+            // נסיגה (Fallback) במידה ואין במכשיר אף אפליקציה הרשומה כקוראת x-sh
+            try {
+                intent.setDataAndType(fileUri, "text/plain");
+                startActivity(Intent.createChooser(intent, "בחר אפליקציה תומכת:"));
+            } catch (Exception ex) {
+                Toast.makeText(this, "לא נמצא מסוף חיצוני תומך במכשיר זה", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
