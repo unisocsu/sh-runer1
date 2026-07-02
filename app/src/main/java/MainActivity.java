@@ -1,7 +1,7 @@
 package com.example.shellrunner;
 
-import android.app.Activity; // שינוי: ירושה מ-Activity רגיל של המערכת
-import android.content.Context;
+import androidx.appcompat.app.AppCompatActivity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -11,23 +11,25 @@ import android.os.Environment;
 import android.provider.Settings;
 import android.view.KeyEvent;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.GridView;
 import android.widget.ListView;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends Activity { // תוקן מ-AppCompatActivity ל-Activity
+public class MainActivity extends AppCompatActivity {
 
     private TextView tvCurrentPath;
     private ListView fileListView;
-    private RadioButton rbInternal;
+    private GridView fileGridView;
+    private ScrollView terminalScrollView;
+    private Button btnToggleView;
 
     private AppExplorer appExplorer;
     private TerminalManager terminalManager;
@@ -37,26 +39,21 @@ public class MainActivity extends Activity { // תוקן מ-AppCompatActivity ל
     private List<File> fileList = new ArrayList<>();
     private List<String> fileNames = new ArrayList<>();
     private ArrayAdapter<String> adapter;
-
-    @Override
-    protected void attachBaseContext(Context newBase) {
-        super.attachBaseContext(newBase);
-        // טעינת ה-MultiDex ידנית בזמן עליית האפליקציה (קריטי לאנדרואיד 4.4 ומטה)
-        androidx.multidex.MultiDex.install(this);
-    }
+    
+    private boolean isGridView = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // א) אתחול רכיבי UI
+        // אתחול רכיבי UI
         tvCurrentPath = findViewById(R.id.tvCurrentPath);
         fileListView = findViewById(R.id.fileListView);
-        rbInternal = findViewById(R.id.rbInternal);
-        
-        ScrollView terminalScrollView = findViewById(R.id.terminalScrollView);
+        fileGridView = findViewById(R.id.fileGridView);
+        terminalScrollView = findViewById(R.id.terminalScrollView);
         TextView tvTerminalOutput = findViewById(R.id.tvTerminalOutput);
+        btnToggleView = findViewById(R.id.btnToggleView);
 
         // אתחול מחלקות עזר
         terminalManager = new TerminalManager(this, tvTerminalOutput, terminalScrollView);
@@ -64,23 +61,86 @@ public class MainActivity extends Activity { // תוקן מ-AppCompatActivity ל
         appExplorer = new AppExplorer(this, tvCurrentPath, fileList, fileNames);
         autoRunManager = new AutoRunManager(this);
 
-        // הגדרת ה-Adapter לסייר
+        // הגדרת ה-Adapter המשותף לרשימה ולרשת
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_activated_1, fileNames);
         fileListView.setAdapter(adapter);
+        fileGridView.setAdapter(adapter);
 
-        // תוקן: הסרת הלמדא לטובת מימוש אנונימי קלאסי שיציב ב-Android 4.4
-        fileListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                handleSelection(position);
+        // מאזיני לחיצות
+        fileListView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
+        fileGridView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
+
+        // כפתור החלפת תצוגה רשת/רשימה
+        btnToggleView.setOnClickListener(v -> toggleViewMode());
+
+        checkStoragePermissions();
+        autoRunManager.runBootScriptIfConfigured();
+    }
+
+    private void toggleViewMode() {
+        isGridView = !isGridView;
+        if (isGridView) {
+            fileListView.setVisibility(View.GONE);
+            fileGridView.setVisibility(View.VISIBLE);
+            btnToggleView.setText("החלף לתצוגת רשימה (List)");
+        } else {
+            fileGridView.setVisibility(View.GONE);
+            fileListView.setVisibility(View.VISIBLE);
+            btnToggleView.setText("החלף לתצוגת רשת (Grid)");
+        }
+    }
+
+    private void handleSelection(int position) {
+        File selectedFile = fileList.get(position);
+        if (selectedFile.isDirectory()) {
+            appExplorer.loadDirectory(selectedFile, adapter);
+        } else {
+            // הקפצת שאילתה למשתמש עבור קובץ
+            showActionDialog(selectedFile);
+        }
+    }
+
+    private void showActionDialog(File file) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, AlertDialog.THEME_HOLO_DARK);
+        builder.setTitle("כיצד תרצה לפעול?");
+        
+        String[] options = {
+            "א) הוסף להרצות האוטומטיות",
+            "ב) הרץ במסוף הפנימי",
+            "ג) הרץ במסוף חיצוני (כללי)"
+        };
+
+        builder.setItems(options, (dialog, which) -> {
+            switch (which) {
+                case 0: // הרצה אוטומטית
+                    autoRunManager.saveScriptForAutoRun(file.getAbsolutePath());
+                    Toast.makeText(this, "התווסף להרצה אוטומטית בבוט", Toast.LENGTH_SHORT).show();
+                    break;
+                case 1: // מסוף פנימי
+                    terminalScrollView.setVisibility(View.VISIBLE);
+                    scriptExecutor.executeInInternalTerminal(file.getAbsolutePath());
+                    break;
+                case 2: // מסוף חיצוני כללי
+                    executeInAnyExternalTerminal(file);
+                    break;
             }
         });
+        builder.show();
+    }
 
-        // בדיקת הרשאות וטעינה
-        checkStoragePermissions();
-
-        // ה) הרצה אוטומטית שקטה בהפעלה
-        autoRunManager.runBootScriptIfConfigured();
+    // פתיחת קובץ ה-sh בכל אפליקציה שמצהירה על עצמה כמסוף/מציגת קבצים חיצונית
+    private void executeInAnyExternalTerminal(File file) {
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        Uri fileUri = Uri.fromFile(file);
+        intent.setDataAndType(fileUri, "text/plain"); // או application/x-sh בהתאם לתמיכת המערכת
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        
+        try {
+            // המערכת תפתח תפריט בחירה "Open With" בין כל אפליקציות הטרמינל/עורכים שקיימים במכשיר
+            startActivity(Intent.createChooser(intent, "בחר אפליקציית מסוף להרצה:"));
+        } catch (Exception e) {
+            Toast.makeText(this, "לא נמצא מסוף חיצוני תומך במכשיר זה", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void checkStoragePermissions() {
@@ -97,16 +157,12 @@ public class MainActivity extends Activity { // תוקן מ-AppCompatActivity ל
             } else {
                 appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
             }
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // בדיקת הרשאות בזמן ריצה רק עבור אנדרואיד 6.0 (Marshmallow) ומעלה
+        } else {
             if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, 102);
             } else {
                 appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
             }
-        } else {
-            // באנדרואיד 4.4 ההרשאות ניתנות אוטומטית בזמן ההתקנה, לכן פשוט נטען את התיקייה
-            appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
         }
     }
 
@@ -126,52 +182,14 @@ public class MainActivity extends Activity { // תוקן מ-AppCompatActivity ל
         }
     }
 
-    // ג) ניתוב ההרצה לפי בחירת המשתמש
-    private void handleSelection(int position) {
-        File selectedFile = fileList.get(position);
-        if (selectedFile.isDirectory()) {
-            appExplorer.loadDirectory(selectedFile, adapter);
-        } else {
-            if (rbInternal.isChecked()) {
-                scriptExecutor.executeInInternalTerminal(selectedFile.getAbsolutePath());
-            } else {
-                scriptExecutor.executeInExternalTerminal(selectedFile.getAbsolutePath());
-            }
-        }
-    }
-
-    // ניהול מקשים פיזיים
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        int currentPosition = fileListView.getSelectedItemPosition();
-
-        switch (keyCode) {
-            case KeyEvent.KEYCODE_DPAD_UP:
-                if (currentPosition > 0) fileListView.setSelection(currentPosition - 1);
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            File parent = appExplorer.getCurrentDir().getParentFile();
+            if (parent != null && !appExplorer.getCurrentDir().getAbsolutePath().equals(Environment.getExternalStorageDirectory().getAbsolutePath())) {
+                appExplorer.loadDirectory(parent, adapter);
                 return true;
-            case KeyEvent.KEYCODE_DPAD_DOWN:
-                if (currentPosition < fileList.size() - 1) fileListView.setSelection(currentPosition + 1);
-                return true;
-            case KeyEvent.KEYCODE_DPAD_CENTER:
-            case KeyEvent.KEYCODE_ENTER:
-                if (currentPosition != ListView.INVALID_POSITION) handleSelection(currentPosition);
-                return true;
-            case KeyEvent.KEYCODE_BACK:
-                File parent = appExplorer.getCurrentDir().getParentFile();
-                if (parent != null && !appExplorer.getCurrentDir().getAbsolutePath().equals(Environment.getExternalStorageDirectory().getAbsolutePath())) {
-                    appExplorer.loadDirectory(parent, adapter);
-                    return true;
-                }
-                break;
-            case KeyEvent.KEYCODE_SPACE:
-            case KeyEvent.KEYCODE_S:
-                if (currentPosition != ListView.INVALID_POSITION) {
-                    File selectedFile = fileList.get(currentPosition);
-                    if (!selectedFile.isDirectory()) {
-                        autoRunManager.saveScriptForAutoRun(selectedFile.getAbsolutePath());
-                    }
-                }
-                return true;
+            }
         }
         return super.onKeyDown(keyCode, event);
     }
