@@ -3,7 +3,9 @@ package com.example.shellrunner;
 import androidx.appcompat.app.AppCompatActivity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -29,7 +31,9 @@ public class MainActivity extends AppCompatActivity {
     private ListView fileListView;
     private GridView fileGridView;
     private ScrollView terminalScrollView;
+    private TextView tvTerminalOutput;
     private Button btnToggleView;
+    private Button btnTerminalSettings;
 
     private AppExplorer appExplorer;
     private TerminalManager terminalManager;
@@ -41,19 +45,30 @@ public class MainActivity extends AppCompatActivity {
     private ArrayAdapter<String> adapter;
     
     private boolean isGridView = false;
+    private SharedPreferences prefs;
+
+    // רשימת צבעים זמינים להגדרה
+    private final String[] colorNames = {"שחור מסורתי", "לבן נקי", "ירוק טרמינל", "כחול עמוק", "סגול יוקרתי"};
+    private final int[] colorValues = {Color.BLACK, Color.WHITE, Color.parseColor("#00FF00"), Color.parseColor("#0044FF"), Color.parseColor("#2D1F3D")};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        prefs = getSharedPreferences("TerminalPrefs", MODE_PRIVATE);
+
         // אתחול רכיבי UI
         tvCurrentPath = findViewById(R.id.tvCurrentPath);
         fileListView = findViewById(R.id.fileListView);
         fileGridView = findViewById(R.id.fileGridView);
         terminalScrollView = findViewById(R.id.terminalScrollView);
-        TextView tvTerminalOutput = findViewById(R.id.tvTerminalOutput);
+        tvTerminalOutput = findViewById(R.id.tvTerminalOutput);
         btnToggleView = findViewById(R.id.btnToggleView);
+        btnTerminalSettings = findViewById(R.id.btnTerminalSettings);
+
+        // טעינת צבעי המסוף שנשמרו בעבר
+        applySavedTerminalColors();
 
         // אתחול מחלקות עזר
         terminalManager = new TerminalManager(this, tvTerminalOutput, terminalScrollView);
@@ -70,11 +85,54 @@ public class MainActivity extends AppCompatActivity {
         fileListView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
         fileGridView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
 
-        // כפתור החלפת תצוגה רשת/רשימה
+        // כפתורי פעולה תחתונים
         btnToggleView.setOnClickListener(v -> toggleViewMode());
+        btnTerminalSettings.setOnClickListener(v -> showTerminalSettingsDialog());
 
         checkStoragePermissions();
         autoRunManager.runBootScriptIfConfigured();
+    }
+
+    private void applySavedTerminalColors() {
+        int bgColor = prefs.getInt("bg_color", Color.parseColor("#0D0814")); // ברירת מחדל סגול כהה מאוד
+        int textColor = prefs.getInt("text_color", Color.parseColor("#00FF00")); // ברירת מחדל ירוק
+        
+        terminalScrollView.setBackgroundColor(bgColor);
+        tvTerminalOutput.setTextColor(textColor);
+    }
+
+    private void showTerminalSettingsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, AlertDialog.THEME_HOLO_DARK);
+        builder.setTitle("הגדרות נראות המסוף");
+        
+        String[] options = {"שנה צבע רקע (מסוף)", "שנה צבע אותיות (טקסט)"};
+        builder.setItems(options, (dialog, which) -> {
+            if (which == 0) {
+                showColorChooserDialog("בחר צבע רקע למסוף", "bg_color");
+            } else {
+                showColorChooserDialog("בחר צבע לאותיות", "text_color");
+            }
+        });
+        builder.show();
+    }
+
+    private void showColorChooserDialog(String title, final String prefKey) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, AlertDialog.THEME_HOLO_DARK);
+        builder.setTitle(title);
+        
+        builder.setItems(colorNames, (dialog, which) -> {
+            int selectedColor = colorValues[which];
+            
+            // שמירה בזיכרון המכשיר
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putInt(prefKey, selectedColor);
+            editor.apply();
+            
+            // החלה מיידית על המסך
+            applySavedTerminalColors();
+            Toast.makeText(this, "הצבע עודכן בהצלחה", Toast.LENGTH_SHORT).show();
+        });
+        builder.show();
     }
 
     private void toggleViewMode() {
@@ -82,11 +140,11 @@ public class MainActivity extends AppCompatActivity {
         if (isGridView) {
             fileListView.setVisibility(View.GONE);
             fileGridView.setVisibility(View.VISIBLE);
-            btnToggleView.setText("החלף לתצוגת רשימה (List)");
+            btnToggleView.setText("תצוגת רשימה (List)");
         } else {
             fileGridView.setVisibility(View.GONE);
             fileListView.setVisibility(View.VISIBLE);
-            btnToggleView.setText("החלף לתצוגת רשת (Grid)");
+            btnToggleView.setText("תצוגת רשת (Grid)");
         }
     }
 
@@ -95,7 +153,6 @@ public class MainActivity extends AppCompatActivity {
         if (selectedFile.isDirectory()) {
             appExplorer.loadDirectory(selectedFile, adapter);
         } else {
-            // הקפצת שאילתה למשתמש עבור קובץ
             showActionDialog(selectedFile);
         }
     }
@@ -112,15 +169,15 @@ public class MainActivity extends AppCompatActivity {
 
         builder.setItems(options, (dialog, which) -> {
             switch (which) {
-                case 0: // הרצה אוטומטית
+                case 0:
                     autoRunManager.saveScriptForAutoRun(file.getAbsolutePath());
                     Toast.makeText(this, "התווסף להרצה אוטומטית בבוט", Toast.LENGTH_SHORT).show();
                     break;
-                case 1: // מסוף פנימי
+                case 1:
                     terminalScrollView.setVisibility(View.VISIBLE);
                     scriptExecutor.executeInInternalTerminal(file.getAbsolutePath());
                     break;
-                case 2: // מסוף חיצוני כללי
+                case 2:
                     executeInAnyExternalTerminal(file);
                     break;
             }
@@ -128,12 +185,10 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // פתיחת קובץ ה-sh בצורה חכמה וממוקדת במסופים חיצוניים במכשיר
     private void executeInAnyExternalTerminal(File file) {
         Intent intent = new Intent(Intent.ACTION_VIEW);
         Uri fileUri;
 
-        // התאמת ה-Uri לפי גרסת האנדרואיד למניעת חסימות אבטחה (FileUriExposedException)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             fileUri = androidx.core.content.FileProvider.getUriForFile(this, 
                     getPackageName() + ".fileprovider", file);
@@ -142,15 +197,12 @@ public class MainActivity extends AppCompatActivity {
             fileUri = Uri.fromFile(file);
         }
 
-        // הגדרת סוג התוכן הרשמי של סקריפט מעטפת (Shell Script)
         intent.setDataAndType(fileUri, "application/x-sh");
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         
         try {
-            // המערכת תפתח תפריט בחירה ממוקד המציג רק אפליקציות מסוף ופיתוח
             startActivity(Intent.createChooser(intent, "בחר אפליקציית מסוף להרצה:"));
         } catch (Exception e) {
-            // נסיגה (Fallback) במידה ואין במכשיר אף אפליקציה הרשומה כקוראת x-sh
             try {
                 intent.setDataAndType(fileUri, "text/plain");
                 startActivity(Intent.createChooser(intent, "בחר אפליקציה תומכת:"));
