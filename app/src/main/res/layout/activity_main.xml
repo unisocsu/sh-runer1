@@ -44,23 +44,61 @@
             android:listSelector="#5A189A" />
     </FrameLayout>
 
-    <ScrollView
-        android:id="@+id/terminalScrollView"
+    <LinearLayout
+        android:id="@+id/terminalContainer"
         android:layout_width="match_parent"
-        android:layout_height="120dp"
+        android:layout_height="180dp"
+        android:orientation="vertical"
         android:background="#0D0814"
         android:layout_marginTop="10dp"
         android:padding="6dp"
         android:visibility="gone">
 
-        <TextView
-            android:id="@+id/tvTerminalOutput"
+        <ScrollView
+            android:id="@+id/terminalScrollView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <TextView
+                android:id="@+id/tvTerminalOutput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#00FF00"
+                android:fontFamily="monospace"
+                android:textSize="12sp" />
+        </ScrollView>
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#00FF00"
-            android:fontFamily="monospace"
-            android:textSize="12sp" />
-    </ScrollView>
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <EditText
+                android:id="@+id/etTerminalInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="הקש קלט לסקריפט (scanf)..."
+                android:textColor="#FFFFFF"
+                android:textColorHint="#555555"
+                android:fontFamily="monospace"
+                android:textSize="13sp"
+                android:background="#1F162E"
+                android:padding="8dp" />
+
+            <Button
+                android:id="@+id/btnTerminalSend"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:text="שלח"
+                android:textSize="12sp"
+                android:textColor="#FFFFFF"
+                android:background="#5A189A"
+                android:layout_marginStart="4dp"/>
+        </LinearLayout>
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
