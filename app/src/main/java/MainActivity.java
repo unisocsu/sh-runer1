@@ -32,7 +32,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvCurrentPath;
     private ListView fileListView;
     private GridView fileGridView;
-    private LinearLayout terminalContainer;
+    private LinearLayout terminalContainer; // הקונטיינר החדש
     private ScrollView terminalScrollView;
     private TextView tvTerminalOutput;
     private EditText etTerminalInput;
@@ -62,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
 
         prefs = getSharedPreferences("TerminalPrefs", MODE_PRIVATE);
 
+        // 1. קודם כל מאתחלים את *כל* רכיבי ה-UI מה-XML כדי למנוע NullPointerException
         tvCurrentPath = findViewById(R.id.tvCurrentPath);
         fileListView = findViewById(R.id.fileListView);
         fileGridView = findViewById(R.id.fileGridView);
@@ -73,44 +74,49 @@ public class MainActivity extends AppCompatActivity {
         btnToggleView = findViewById(R.id.btnToggleView);
         btnTerminalSettings = findViewById(R.id.btnTerminalSettings);
 
+        // 2. רק אחרי שכל הרכיבים קיימים בזיכרון, מחילים את הצבעים השמורים
         applySavedTerminalColors();
 
+        // 3. אתחול מנהלי הלוגיקה
         terminalManager = new TerminalManager(this, tvTerminalOutput, terminalScrollView);
         scriptExecutor = new ScriptExecutor(this, terminalManager);
         appExplorer = new AppExplorer(this, tvCurrentPath, fileList, fileNames);
         autoRunManager = new AutoRunManager(this);
 
+        // 4. הגדרת הצימוד ל-Adapters
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_activated_1, fileNames);
         fileListView.setAdapter(adapter);
         fileGridView.setAdapter(adapter);
 
+        // 5. מאזיני לחיצות
         fileListView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
         fileGridView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
 
         btnToggleView.setOnClickListener(v -> toggleViewMode());
         btnTerminalSettings.setOnClickListener(v -> showTerminalSettingsDialog());
 
-        // כפתור שליחת קלט לתהליך הרץ (scanf)
         btnTerminalSend.setOnClickListener(v -> {
             String input = etTerminalInput.getText().toString();
             if (!input.isEmpty()) {
-                // הדפסת הקלט במסך המסוף כדי שהמשתמש יראה מה הוא שלח
                 terminalManager.appendLine("> " + input);
                 scriptExecutor.writeToProcess(input);
                 etTerminalInput.setText("");
             }
         });
 
+        // 6. הרצה ובדיקת הרשאות בסוף ה-Target
         checkStoragePermissions();
         autoRunManager.runBootScriptIfConfigured();
     }
 
     private void applySavedTerminalColors() {
-        int bgColor = prefs.getInt("bg_color", Color.parseColor("#0D0814"));
-        int textColor = prefs.getInt("text_color", Color.parseColor("#00FF00"));
-        
-        terminalContainer.setBackgroundColor(bgColor);
-        tvTerminalOutput.setTextColor(textColor);
+        if (terminalContainer != null && tvTerminalOutput != null) {
+            int bgColor = prefs.getInt("bg_color", Color.parseColor("#0D0814"));
+            int textColor = prefs.getInt("text_color", Color.parseColor("#00FF00"));
+            
+            terminalContainer.setBackgroundColor(bgColor);
+            tvTerminalOutput.setTextColor(textColor);
+        }
     }
 
     private void showTerminalSettingsDialog() {
@@ -188,7 +194,9 @@ public class MainActivity extends AppCompatActivity {
                     autoRunManager.saveScriptForAutoRun(file.getAbsolutePath());
                     break;
                 case 1:
-                    terminalContainer.setVisibility(View.VISIBLE);
+                    if (terminalContainer != null) {
+                        terminalContainer.setVisibility(View.VISIBLE);
+                    }
                     scriptExecutor.executeInInternalTerminal(file.getAbsolutePath());
                     break;
                 case 2:
@@ -238,13 +246,17 @@ public class MainActivity extends AppCompatActivity {
                     startActivityForResult(intent, 101);
                 }
             } else {
-                appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
+                if (appExplorer != null && adapter != null) {
+                    appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
+                }
             }
         } else {
             if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, 102);
             } else {
-                appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
+                if (appExplorer != null && adapter != null) {
+                    appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
+                }
             }
         }
     }
