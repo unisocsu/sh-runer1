@@ -47,7 +47,6 @@ public class MainActivity extends AppCompatActivity {
     private boolean isGridView = false;
     private SharedPreferences prefs;
 
-    // רשימת צבעים זמינים להגדרה
     private final String[] colorNames = {"שחור מסורתי", "לבן נקי", "ירוק טרמינל", "כחול עמוק", "סגול יוקרתי"};
     private final int[] colorValues = {Color.BLACK, Color.WHITE, Color.parseColor("#00FF00"), Color.parseColor("#0044FF"), Color.parseColor("#2D1F3D")};
 
@@ -58,7 +57,6 @@ public class MainActivity extends AppCompatActivity {
 
         prefs = getSharedPreferences("TerminalPrefs", MODE_PRIVATE);
 
-        // אתחול רכיבי UI
         tvCurrentPath = findViewById(R.id.tvCurrentPath);
         fileListView = findViewById(R.id.fileListView);
         fileGridView = findViewById(R.id.fileGridView);
@@ -67,25 +65,20 @@ public class MainActivity extends AppCompatActivity {
         btnToggleView = findViewById(R.id.btnToggleView);
         btnTerminalSettings = findViewById(R.id.btnTerminalSettings);
 
-        // טעינת צבעי המסוף שנשמרו בעבר
         applySavedTerminalColors();
 
-        // אתחול מחלקות עזר
         terminalManager = new TerminalManager(this, tvTerminalOutput, terminalScrollView);
         scriptExecutor = new ScriptExecutor(this, terminalManager);
         appExplorer = new AppExplorer(this, tvCurrentPath, fileList, fileNames);
         autoRunManager = new AutoRunManager(this);
 
-        // הגדרת ה-Adapter המשותף לרשימה ולרשת
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_activated_1, fileNames);
         fileListView.setAdapter(adapter);
         fileGridView.setAdapter(adapter);
 
-        // מאזיני לחיצות
         fileListView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
         fileGridView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
 
-        // כפתורי פעולה תחתונים
         btnToggleView.setOnClickListener(v -> toggleViewMode());
         btnTerminalSettings.setOnClickListener(v -> showTerminalSettingsDialog());
 
@@ -94,8 +87,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void applySavedTerminalColors() {
-        int bgColor = prefs.getInt("bg_color", Color.parseColor("#0D0814")); // ברירת מחדל סגול כהה מאוד
-        int textColor = prefs.getInt("text_color", Color.parseColor("#00FF00")); // ברירת מחדל ירוק
+        int bgColor = prefs.getInt("bg_color", Color.parseColor("#0D0814"));
+        int textColor = prefs.getInt("text_color", Color.parseColor("#00FF00"));
         
         terminalScrollView.setBackgroundColor(bgColor);
         tvTerminalOutput.setTextColor(textColor);
@@ -122,13 +115,10 @@ public class MainActivity extends AppCompatActivity {
         
         builder.setItems(colorNames, (dialog, which) -> {
             int selectedColor = colorValues[which];
-            
-            // שמירה בזיכרון המכשיר
             SharedPreferences.Editor editor = prefs.edit();
             editor.putInt(prefKey, selectedColor);
             editor.apply();
             
-            // החלה מיידית על המסך
             applySavedTerminalColors();
             Toast.makeText(this, "הצבע עודכן בהצלחה", Toast.LENGTH_SHORT).show();
         });
@@ -168,10 +158,15 @@ public class MainActivity extends AppCompatActivity {
         };
 
         builder.setItems(options, (dialog, which) -> {
+            try {
+                Runtime.getRuntime().exec("chmod 755 " + file.getAbsolutePath()).waitFor();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
             switch (which) {
                 case 0:
                     autoRunManager.saveScriptForAutoRun(file.getAbsolutePath());
-                    Toast.makeText(this, "התווסף להרצה אוטומטית בבוט", Toast.LENGTH_SHORT).show();
                     break;
                 case 1:
                     terminalScrollView.setVisibility(View.VISIBLE);
