@@ -18,7 +18,7 @@ public class TerminalManager {
     }
 
     public void clearAndLog(String initialText) {
-        tvTerminalOutput.setText(initialText);
+        activity.runOnUiThread(() -> tvTerminalOutput.setText(initialText));
     }
 
     public void appendLine(final String line) {
