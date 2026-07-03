@@ -20,7 +20,7 @@ public class AutoRunManager {
     public void saveScriptForAutoRun(String path) {
         SharedPreferences prefs = context.getSharedPreferences("ShellRunnerPrefs", Context.MODE_PRIVATE);
         prefs.edit().putString("boot_script_path", path).apply();
-        Toast.makeText(context, "הסקריפט הוגדר להרצה שקטה בכל הפעלה!", Toast.LENGTH_SHORT).show();
+        Toast.makeText(context, "הקובץ הוגדר להרצה שקטה בכל הפעלה!", Toast.LENGTH_SHORT).show();
     }
 
     public void runBootScriptIfConfigured() {
@@ -34,35 +34,46 @@ public class AutoRunManager {
                     Process process = null;
                     DataOutputStream os = null;
                     try {
-                        boolean requiresRoot = checkIfScriptRequiresRoot(bootScriptPath);
-                        
+                        boolean requiresRoot = checkIfRequiresRoot(bootScriptPath);
+                        boolean isShellScript = file.getName().toLowerCase().endsWith(".sh");
+
                         if (requiresRoot) {
                             process = new ProcessBuilder("su").start();
+                            os = new DataOutputStream(process.getOutputStream());
+                            if (isShellScript) {
+                                os.writeBytes("sh " + bootScriptPath + "\n");
+                            } else {
+                                os.writeBytes(bootScriptPath + "\n");
+                            }
+                            os.writeBytes("exit\n");
+                            os.flush();
                         } else {
-                            process = new ProcessBuilder("sh").start();
+                            if (isShellScript) {
+                                process = new ProcessBuilder("sh", bootScriptPath).start();
+                            } else {
+                                process = new ProcessBuilder(bootScriptPath).start();
+                            }
                         }
-                        
-                        os = new DataOutputStream(process.getOutputStream());
-                        os.writeBytes("sh " + bootScriptPath + "\n");
-                        os.writeBytes("exit\n");
-                        os.flush();
                         
                         process.waitFor();
                     } catch (Exception e) {
                         e.printStackTrace();
-                    } finaly {
+                    } finally { // <--- כאן תוקן מ-finaly ל-finally
                         try { if (os != null) os.close(); } catch (Exception ignored) {}
                         try { if (process != null) process.destroy(); } catch (Exception ignored) {}
                     }
                 });
-                Toast.makeText(context, "סקריפט הפעלה אוטומטי הורץ ברקע", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "קובץ הפעלה אוטומטי הורץ ברקע", Toast.LENGTH_SHORT).show();
             }
         }
     }
 
-    private boolean checkIfScriptRequiresRoot(String scriptPath) {
+    private boolean checkIfRequiresRoot(String filePath) {
+        File file = new File(filePath);
+        if (!file.getName().toLowerCase().endsWith(".sh")) {
+            return true;
+        }
         try {
-            File file = new File(scriptPath);
             java.util.Scanner scanner = new java.util.Scanner(file);
             int lineCount = 0;
             while (scanner.hasNextLine() && lineCount < 5) {
