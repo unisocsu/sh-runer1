@@ -31,19 +31,50 @@ public class AutoRunManager {
             File file = new File(bootScriptPath);
             if (file.exists()) {
                 executorService.execute(() -> {
+                    Process process = null;
+                    DataOutputStream os = null;
                     try {
-                        Process process = new ProcessBuilder("sh").start();
-                        DataOutputStream os = new DataOutputStream(process.getOutputStream());
+                        boolean requiresRoot = checkIfScriptRequiresRoot(bootScriptPath);
+                        
+                        if (requiresRoot) {
+                            process = new ProcessBuilder("su").start();
+                        } else {
+                            process = new ProcessBuilder("sh").start();
+                        }
+                        
+                        os = new DataOutputStream(process.getOutputStream());
                         os.writeBytes("sh " + bootScriptPath + "\n");
                         os.writeBytes("exit\n");
                         os.flush();
-                        process.waitFor(); // הרצה שקטה לחלוטין ללא מסוף
+                        
+                        process.waitFor();
                     } catch (Exception e) {
                         e.printStackTrace();
+                    } finaly {
+                        try { if (os != null) os.close(); } catch (Exception ignored) {}
+                        try { if (process != null) process.destroy(); } catch (Exception ignored) {}
                     }
                 });
                 Toast.makeText(context, "סקריפט הפעלה אוטומטי הורץ ברקע", Toast.LENGTH_SHORT).show();
             }
         }
+    }
+
+    private boolean checkIfScriptRequiresRoot(String scriptPath) {
+        try {
+            File file = new File(scriptPath);
+            java.util.Scanner scanner = new java.util.Scanner(file);
+            int lineCount = 0;
+            while (scanner.hasNextLine() && lineCount < 5) {
+                String line = scanner.nextLine().trim();
+                if (line.equals("su") || line.startsWith("su ")) {
+                    scanner.close();
+                    return true;
+                }
+                lineCount++;
+            }
+            scanner.close();
+        } catch (Exception ignored) {}
+        return false;
     }
 }
