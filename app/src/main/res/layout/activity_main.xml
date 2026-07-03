@@ -77,7 +77,7 @@
             android:text="תצוגת רשת (Grid)"
             android:textColor="#FFFFFF"
             android:background="@android:drawable/btn_default"
-            android:layout_marginRight="4dp"/>
+            android:layout_marginEnd="4dp"/>
 
         <Button
             android:id="@+id/btnTerminalSettings"
@@ -87,7 +87,7 @@
             android:text="הגדרות צבעים"
             android:textColor="#FFFFFF"
             android:background="@android:drawable/btn_default"
-            android:layout_marginLeft="4dp"/>
+            android:layout_marginStart="4dp"/>
     </LinearLayout>
 
 </LinearLayout>
