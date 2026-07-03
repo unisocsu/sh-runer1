@@ -13,6 +13,7 @@ public class ScriptExecutor {
 
     private final Context context;
     private final TerminalManager terminalManager;
+    private DataOutputStream activeProcessOutputStream = null;
 
     public ScriptExecutor(Context context, TerminalManager terminalManager) {
         this.context = context;
@@ -20,9 +21,23 @@ public class ScriptExecutor {
     }
 
     /**
-     * מזהה אוטומטית האם מדובר בסקריפט או בקובץ בינארי, 
-     * מעתיק במידת הצורך לתיקייה פנימית ומריץ במסוף.
+     * פונקציה לשליחת קלט לתהליך הרץ (עבור scanf או פקודות shell הבאות)
      */
+    public void writeToProcess(String input) {
+        if (activeProcessOutputStream != null) {
+            new Thread(() -> {
+                try {
+                    activeProcessOutputStream.writeBytes(input + "\n");
+                    activeProcessOutputStream.flush();
+                } catch (Exception e) {
+                    terminalManager.appendLine("[SYSTEM ERR] Failed to send input: " + e.getMessage());
+                }
+            }).start();
+        } else {
+            terminalManager.appendLine("[SYSTEM ERR] No active process to receive input.");
+        }
+    }
+
     public void executeInInternalTerminal(final String filePath) {
         final File originalFile = new File(filePath);
         terminalManager.clearAndLog("[$] Initializing execution for: " + originalFile.getName() + "\n");
@@ -31,58 +46,54 @@ public class ScriptExecutor {
             @Override
             public void run() {
                 Process process = null;
-                DataOutputStream os = null;
                 BufferedReader reader = null;
                 File fileToExecute = originalFile;
                 boolean isBinary = !originalFile.getName().toLowerCase().endsWith(".sh");
 
                 try {
-                    // פתרון מגבלת ה-noexec: אם זה קובץ בינארי (כמו אקספלויט C/Assembly), מעתיקים לתיקיית ה-Cache הפנימית
                     if (isBinary) {
-                        terminalManager.appendLine("[*] Binary detected. Copying to internal secure storage to bypass 'noexec' restriction...");
+                        terminalManager.appendLine("[*] Binary detected. Copying to internal secure storage...");
                         File internalFile = new File(context.getCacheDir(), originalFile.getName());
                         copyFile(originalFile, internalFile);
-                        
-                        // הענקת הרשאות ריצה מלאות במיקום הפנימי החדש
                         Runtime.getRuntime().exec("chmod 755 " + internalFile.getAbsolutePath()).waitFor();
                         fileToExecute = internalFile;
                     } else {
-                        // אם זה קובץ .sh רגיל, נותנים לו chmod ישיר במיקומו
                         Runtime.getRuntime().exec("chmod 755 " + originalFile.getAbsolutePath()).waitFor();
                     }
 
                     boolean requiresRoot = checkIfRequiresRoot(fileToExecute.getAbsolutePath(), isBinary);
 
-                    // תחילת תהליך ההרצה
+                    // פתיחת התהליך
                     if (requiresRoot) {
                         terminalManager.appendLine("[*] Launching via SU Session...");
                         process = Runtime.getRuntime().exec("su");
-                        os = new DataOutputStream(process.getOutputStream());
+                        activeProcessOutputStream = new DataOutputStream(process.getOutputStream());
                         
                         if (!isBinary) {
-                            os.writeBytes("sh " + fileToExecute.getAbsolutePath() + "\n");
+                            activeProcessOutputStream.writeBytes("sh " + fileToExecute.getAbsolutePath() + "\n");
                         } else {
-                            os.writeBytes(fileToExecute.getAbsolutePath() + "\n");
+                            activeProcessOutputStream.writeBytes(fileToExecute.getAbsolutePath() + "\n");
                         }
-                        os.writeBytes("exit\n");
-                        os.flush();
+                        activeProcessOutputStream.flush();
                     } else {
-                        terminalManager.appendLine("[*] Launching via Standard Sh/Local Process...");
+                        terminalManager.appendLine("[*] Launching Local Process...");
                         if (!isBinary) {
                             process = Runtime.getRuntime().exec("sh " + fileToExecute.getAbsolutePath());
                         } else {
                             process = Runtime.getRuntime().exec(fileToExecute.getAbsolutePath());
                         }
+                        // עבור תהליך רגיל, אנחנו צריכים לקבל את זרם הקלט שלו כדי לשלוח אליו scanf
+                        activeProcessOutputStream = new DataOutputStream(process.getOutputStream());
                     }
 
-                    // קריאת הפלט של האקספלויט/סקריפט בזמן אמת
+                    // קריאת הפלט בזמן אמת
                     reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                     String line;
                     while ((line = reader.readLine()) != null) {
                         terminalManager.appendLine(line);
                     }
 
-                    // קריאת שגיאות מהמערכת (סטנדרטי בלינוקס)
+                    // קריאת שגיאות
                     BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
                     while ((line = errorReader.readLine()) != null) {
                         terminalManager.appendLine("[ERR/STDOUT] " + line);
@@ -94,11 +105,13 @@ public class ScriptExecutor {
                 } catch (Exception e) {
                     terminalManager.appendLine("\n[Execution Fatal Error: " + e.getMessage() + "]");
                 } finally {
-                    // ניקוי הקובץ הזמני מה-cache למניעת עקבות והצטברות זבל בזיכרון
+                    // איפוס זרם הקלט בסיום
+                    try { if (activeProcessOutputStream != null) activeProcessOutputStream.close(); } catch (Exception ignored) {}
+                    activeProcessOutputStream = null;
+
                     if (isBinary && fileToExecute.exists() && !fileToExecute.getAbsolutePath().equals(originalFile.getAbsolutePath())) {
                         fileToExecute.delete();
                     }
-                    try { if (os != null) os.close(); } catch (Exception ignored) {}
                     try { if (reader != null) reader.close(); } catch (Exception ignored) {}
                     try { if (process != null) process.destroy(); } catch (Exception ignored) {}
                 }
@@ -106,9 +119,6 @@ public class ScriptExecutor {
         }).start();
     }
 
-    /**
-     * פונקציית עזר להעתקת הקובץ הבינארי ביעילות (FileChannel)
-     */
     private void copyFile(File source, File dest) throws Exception {
         try (FileChannel sourceChannel = new FileInputStream(source).getChannel();
              FileChannel destChannel = new FileOutputStream(dest).getChannel()) {
@@ -116,16 +126,8 @@ public class ScriptExecutor {
         }
     }
 
-    /**
-     * בודק דרישת רוט. לאקספלויטים בינאריים לפעמים מריצים ישירות ללא su, 
-     * אך אם המשתמש כבר מורשה או שהקובץ הוא סקריפט המכיל פקודות su, נחזיר אמת.
-     */
     private boolean checkIfRequiresRoot(String filePath, boolean isBinary) {
-        if (isBinary) {
-            // עבור אקספלויטים כמו dirtycow לרוב רוצים להריץ כמשתמש רגיל כדי להסלים לרוט,
-            // לכן נחזיר false כדי שלא יפתח דרך su מראש, אלא יריץ אותו "נקי" כפי שהוא.
-            return false; 
-        }
+        if (isBinary) return false; 
         try {
             File file = new File(filePath);
             java.util.Scanner scanner = new java.util.Scanner(file);
