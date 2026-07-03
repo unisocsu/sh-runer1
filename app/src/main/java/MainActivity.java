@@ -15,7 +15,9 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.GridView;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -30,8 +32,11 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvCurrentPath;
     private ListView fileListView;
     private GridView fileGridView;
+    private LinearLayout terminalContainer;
     private ScrollView terminalScrollView;
     private TextView tvTerminalOutput;
+    private EditText etTerminalInput;
+    private Button btnTerminalSend;
     private Button btnToggleView;
     private Button btnTerminalSettings;
 
@@ -60,8 +65,11 @@ public class MainActivity extends AppCompatActivity {
         tvCurrentPath = findViewById(R.id.tvCurrentPath);
         fileListView = findViewById(R.id.fileListView);
         fileGridView = findViewById(R.id.fileGridView);
+        terminalContainer = findViewById(R.id.terminalContainer);
         terminalScrollView = findViewById(R.id.terminalScrollView);
         tvTerminalOutput = findViewById(R.id.tvTerminalOutput);
+        etTerminalInput = findViewById(R.id.etTerminalInput);
+        btnTerminalSend = findViewById(R.id.btnTerminalSend);
         btnToggleView = findViewById(R.id.btnToggleView);
         btnTerminalSettings = findViewById(R.id.btnTerminalSettings);
 
@@ -82,6 +90,17 @@ public class MainActivity extends AppCompatActivity {
         btnToggleView.setOnClickListener(v -> toggleViewMode());
         btnTerminalSettings.setOnClickListener(v -> showTerminalSettingsDialog());
 
+        // כפתור שליחת קלט לתהליך הרץ (scanf)
+        btnTerminalSend.setOnClickListener(v -> {
+            String input = etTerminalInput.getText().toString();
+            if (!input.isEmpty()) {
+                // הדפסת הקלט במסך המסוף כדי שהמשתמש יראה מה הוא שלח
+                terminalManager.appendLine("> " + input);
+                scriptExecutor.writeToProcess(input);
+                etTerminalInput.setText("");
+            }
+        });
+
         checkStoragePermissions();
         autoRunManager.runBootScriptIfConfigured();
     }
@@ -90,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
         int bgColor = prefs.getInt("bg_color", Color.parseColor("#0D0814"));
         int textColor = prefs.getInt("text_color", Color.parseColor("#00FF00"));
         
-        terminalScrollView.setBackgroundColor(bgColor);
+        terminalContainer.setBackgroundColor(bgColor);
         tvTerminalOutput.setTextColor(textColor);
     }
 
@@ -149,11 +168,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void showActionDialog(File file) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this, AlertDialog.THEME_HOLO_DARK);
-        builder.setTitle("כיצד תרצה לפעול?");
+        builder.setTitle("כיצד תרצה לפעול עבור: " + file.getName());
         
         String[] options = {
             "א) הוסף להרצות האוטומטיות",
-            "ב) הרץ במסוף הפנימי",
+            "ב) הרץ במסוף הפנימי (כקובץ ריצה)",
             "ג) הרץ במסוף חיצוני (כללי)"
         };
 
@@ -169,7 +188,7 @@ public class MainActivity extends AppCompatActivity {
                     autoRunManager.saveScriptForAutoRun(file.getAbsolutePath());
                     break;
                 case 1:
-                    terminalScrollView.setVisibility(View.VISIBLE);
+                    terminalContainer.setVisibility(View.VISIBLE);
                     scriptExecutor.executeInInternalTerminal(file.getAbsolutePath());
                     break;
                 case 2:
