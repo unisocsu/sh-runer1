@@ -24,8 +24,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,7 +32,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvCurrentPath;
     private ListView fileListView;
     private GridView fileGridView;
-    private LinearLayout terminalContainer;
+    private LinearLayout terminalContainer; // הקונטיינר החדש
     private ScrollView terminalScrollView;
     private TextView tvTerminalOutput;
     private EditText etTerminalInput;
@@ -60,78 +58,59 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        try {
-            setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_main);
 
-            prefs = getSharedPreferences("TerminalPrefs", MODE_PRIVATE);
+        prefs = getSharedPreferences("TerminalPrefs", MODE_PRIVATE);
 
-            // אתחול רכיבים מה-XML
-            tvCurrentPath = findViewById(R.id.tvCurrentPath);
-            fileListView = findViewById(R.id.fileListView);
-            fileGridView = findViewById(R.id.fileGridView);
-            terminalContainer = findViewById(R.id.terminalContainer);
-            terminalScrollView = findViewById(R.id.terminalScrollView);
-            tvTerminalOutput = findViewById(R.id.tvTerminalOutput);
-            etTerminalInput = findViewById(R.id.etTerminalInput);
-            btnTerminalSend = findViewById(R.id.btnTerminalSend);
-            btnToggleView = findViewById(R.id.btnToggleView);
-            btnTerminalSettings = findViewById(R.id.btnTerminalSettings);
+        // 1. קודם כל מאתחלים את *כל* רכיבי ה-UI מה-XML כדי למנוע NullPointerException
+        tvCurrentPath = findViewById(R.id.tvCurrentPath);
+        fileListView = findViewById(R.id.fileListView);
+        fileGridView = findViewById(R.id.fileGridView);
+        terminalContainer = findViewById(R.id.terminalContainer);
+        terminalScrollView = findViewById(R.id.terminalScrollView);
+        tvTerminalOutput = findViewById(R.id.tvTerminalOutput);
+        etTerminalInput = findViewById(R.id.etTerminalInput);
+        btnTerminalSend = findViewById(R.id.btnTerminalSend);
+        btnToggleView = findViewById(R.id.btnToggleView);
+        btnTerminalSettings = findViewById(R.id.btnTerminalSettings);
 
-            applySavedTerminalColors();
+        // 2. רק אחרי שכל הרכיבים קיימים בזיכרון, מחילים את הצבעים השמורים
+        applySavedTerminalColors();
 
-            // אתחול מחלקות לוגיקה
-            terminalManager = new TerminalManager(this, tvTerminalOutput, terminalScrollView);
-            scriptExecutor = new ScriptExecutor(this, terminalManager);
-            appExplorer = new AppExplorer(this, tvCurrentPath, fileList, fileNames);
-            autoRunManager = new AutoRunManager(this);
+        // 3. אתחול מנהלי הלוגיקה
+        terminalManager = new TerminalManager(this, tvTerminalOutput, terminalScrollView);
+        scriptExecutor = new ScriptExecutor(this, terminalManager);
+        appExplorer = new AppExplorer(this, tvCurrentPath, fileList, fileNames);
+        autoRunManager = new AutoRunManager(this);
 
-            adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_activated_1, fileNames);
-            fileListView.setAdapter(adapter);
-            fileGridView.setAdapter(adapter);
+        // 4. הגדרת הצימוד ל-Adapters
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_activated_1, fileNames);
+        fileListView.setAdapter(adapter);
+        fileGridView.setAdapter(adapter);
 
-            fileListView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
-            fileGridView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
+        // 5. מאזיני לחיצות
+        fileListView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
+        fileGridView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
 
-            btnToggleView.setOnClickListener(v -> toggleViewMode());
-            btnTerminalSettings.setOnClickListener(v -> showTerminalSettingsDialog());
+        btnToggleView.setOnClickListener(v -> toggleViewMode());
+        btnTerminalSettings.setOnClickListener(v -> showTerminalSettingsDialog());
 
-            btnTerminalSend.setOnClickListener(v -> {
-                if (etTerminalInput != null) {
-                    String input = etTerminalInput.getText().toString();
-                    if (!input.isEmpty()) {
-                        terminalManager.appendLine("> " + input);
-                        scriptExecutor.writeToProcess(input);
-                        etTerminalInput.setText("");
-                    }
-                }
-            });
+        btnTerminalSend.setOnClickListener(v -> {
+            String input = etTerminalInput.getText().toString();
+            if (!input.isEmpty()) {
+                terminalManager.appendLine("> " + input);
+                scriptExecutor.writeToProcess(input);
+                etTerminalInput.setText("");
+            }
+        });
 
-            checkStoragePermissions();
-            autoRunManager.runBootScriptIfConfigured();
-
-        } catch (Exception e) {
-            // אם יש קריסה באתחול - נתפוס אותה ונציג אותה ישירות על המסך במקום לקרוס!
-            showCrashReport(e);
-        }
-    }
-
-    private void showCrashReport(Exception e) {
-        StringWriter sw = new StringWriter();
-        PrintWriter pw = new PrintWriter(sw);
-        e.printStackTrace(pw);
-        String stackTrace = sw.toString();
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("⚠️ שגיאת אתחול קריטית קורסת");
-        builder.setMessage(stackTrace);
-        builder.setPositiveButton("סגור", (dialog, which) -> finish());
-        builder.setCancelable(false);
-        builder.show();
+        // 6. הרצה ובדיקת הרשאות בסוף ה-Target
+        checkStoragePermissions();
+        autoRunManager.runBootScriptIfConfigured();
     }
 
     private void applySavedTerminalColors() {
-        if (terminalContainer != null && tvTerminalOutput != null && prefs != null) {
+        if (terminalContainer != null && tvTerminalOutput != null) {
             int bgColor = prefs.getInt("bg_color", Color.parseColor("#0D0814"));
             int textColor = prefs.getInt("text_color", Color.parseColor("#00FF00"));
             
