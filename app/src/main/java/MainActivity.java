@@ -2,6 +2,7 @@ package com.example.shellrunner;
 
 import androidx.appcompat.app.AppCompatActivity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -24,6 +25,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,7 +35,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvCurrentPath;
     private ListView fileListView;
     private GridView fileGridView;
-    private LinearLayout terminalContainer; // הקונטיינר החדש
+    private LinearLayout terminalContainer;
     private ScrollView terminalScrollView;
     private TextView tvTerminalOutput;
     private EditText etTerminalInput;
@@ -56,61 +59,112 @@ public class MainActivity extends AppCompatActivity {
     private final int[] colorValues = {Color.BLACK, Color.WHITE, Color.parseColor("#00FF00"), Color.parseColor("#0044FF"), Color.parseColor("#2D1F3D")};
 
     @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(newBase);
+        // הפעלה ידנית קריטית של MultiDex עבור אנדרואיד 4.4 ומטה כדי למנוע קריסת ClassLoader
+        try {
+            androidx.multidex.MultiDex.install(this);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        
+        try {
+            setContentView(R.layout.activity_main);
 
-        prefs = getSharedPreferences("TerminalPrefs", MODE_PRIVATE);
+            prefs = getSharedPreferences("TerminalPrefs", MODE_PRIVATE);
 
-        // 1. קודם כל מאתחלים את *כל* רכיבי ה-UI מה-XML כדי למנוע NullPointerException
-        tvCurrentPath = findViewById(R.id.tvCurrentPath);
-        fileListView = findViewById(R.id.fileListView);
-        fileGridView = findViewById(R.id.fileGridView);
-        terminalContainer = findViewById(R.id.terminalContainer);
-        terminalScrollView = findViewById(R.id.terminalScrollView);
-        tvTerminalOutput = findViewById(R.id.tvTerminalOutput);
-        etTerminalInput = findViewById(R.id.etTerminalInput);
-        btnTerminalSend = findViewById(R.id.btnTerminalSend);
-        btnToggleView = findViewById(R.id.btnToggleView);
-        btnTerminalSettings = findViewById(R.id.btnTerminalSettings);
+            // 1. אתחול רכיבי ה-UI מה-XML
+            tvCurrentPath = findViewById(R.id.tvCurrentPath);
+            fileListView = findViewById(R.id.fileListView);
+            fileGridView = findViewById(R.id.fileGridView);
+            terminalContainer = findViewById(R.id.terminalContainer);
+            terminalScrollView = findViewById(R.id.terminalScrollView);
+            tvTerminalOutput = findViewById(R.id.tvTerminalOutput);
+            etTerminalInput = findViewById(R.id.etTerminalInput);
+            btnTerminalSend = findViewById(R.id.btnTerminalSend);
+            btnToggleView = findViewById(R.id.btnToggleView);
+            btnTerminalSettings = findViewById(R.id.btnTerminalSettings);
 
-        // 2. רק אחרי שכל הרכיבים קיימים בזיכרון, מחילים את הצבעים השמורים
-        applySavedTerminalColors();
+            // 2. החלת הגדרות תצוגה ראשוניות
+            applySavedTerminalColors();
 
-        // 3. אתחול מנהלי הלוגיקה
-        terminalManager = new TerminalManager(this, tvTerminalOutput, terminalScrollView);
-        scriptExecutor = new ScriptExecutor(this, terminalManager);
-        appExplorer = new AppExplorer(this, tvCurrentPath, fileList, fileNames);
-        autoRunManager = new AutoRunManager(this);
+            // 3. אתחול מחלקות הלוגיקה
+            terminalManager = new TerminalManager(this, tvTerminalOutput, terminalScrollView);
+            scriptExecutor = new ScriptExecutor(this, terminalManager);
+            appExplorer = new AppExplorer(this, tvCurrentPath, fileList, fileNames);
+            autoRunManager = new AutoRunManager(this);
 
-        // 4. הגדרת הצימוד ל-Adapters
-        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_activated_1, fileNames);
-        fileListView.setAdapter(adapter);
-        fileGridView.setAdapter(adapter);
+            // 4. הגדרת הצימוד ל-Adapters
+            adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_activated_1, fileNames);
+            if (fileListView != null) fileListView.setAdapter(adapter);
+            if (fileGridView != null) fileGridView.setAdapter(adapter);
 
-        // 5. מאזיני לחיצות
-        fileListView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
-        fileGridView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
-
-        btnToggleView.setOnClickListener(v -> toggleViewMode());
-        btnTerminalSettings.setOnClickListener(v -> showTerminalSettingsDialog());
-
-        btnTerminalSend.setOnClickListener(v -> {
-            String input = etTerminalInput.getText().toString();
-            if (!input.isEmpty()) {
-                terminalManager.appendLine("> " + input);
-                scriptExecutor.writeToProcess(input);
-                etTerminalInput.setText("");
+            // 5. מאזיני לחיצות
+            if (fileListView != null) {
+                fileListView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
             }
-        });
+            if (fileGridView != null) {
+                fileGridView.setOnItemClickListener((parent, view, position, id) -> handleSelection(position));
+            }
 
-        // 6. הרצה ובדיקת הרשאות בסוף ה-Target
-        checkStoragePermissions();
-        autoRunManager.runBootScriptIfConfigured();
+            if (btnToggleView != null) {
+                btnToggleView.setOnClickListener(v -> toggleViewMode());
+            }
+            if (btnTerminalSettings != null) {
+                btnTerminalSettings.setOnClickListener(v -> showTerminalSettingsDialog());
+            }
+
+            if (btnTerminalSend != null) {
+                btnTerminalSend.setOnClickListener(v -> {
+                    if (etTerminalInput != null && terminalManager != null && scriptExecutor != null) {
+                        String input = etTerminalInput.getText().toString();
+                        if (!input.isEmpty()) {
+                            terminalManager.appendLine("> " + input);
+                            scriptExecutor.writeToProcess(input);
+                            etTerminalInput.setText("");
+                        }
+                    }
+                });
+            }
+
+            // 6. הרצה ובדיקת הרשאות
+            checkStoragePermissions();
+            if (autoRunManager != null) {
+                autoRunManager.runBootScriptIfConfigured();
+            }
+
+        } catch (Exception e) {
+            // תפיסת השגיאה במקרה של כשל בטעינת ה-Layout או באתחול
+            showCrashReport(e);
+        }
+    }
+
+    private void showCrashReport(Exception e) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        e.printStackTrace(pw);
+        String stackTrace = sw.toString();
+
+        try {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("⚠️ שגיאת אתחול קריטית");
+            builder.setMessage(stackTrace);
+            builder.setPositiveButton("סגור", (dialog, which) -> finish());
+            builder.setCancelable(false);
+            builder.show();
+        } catch (Exception ignored) {
+            // במקרה קיצון שלא ניתן להציג דיאלוג, נציג לפחות Toast
+            Toast.makeText(this, "קריסה: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     private void applySavedTerminalColors() {
-        if (terminalContainer != null && tvTerminalOutput != null) {
+        if (terminalContainer != null && tvTerminalOutput != null && prefs != null) {
             int bgColor = prefs.getInt("bg_color", Color.parseColor("#0D0814"));
             int textColor = prefs.getInt("text_color", Color.parseColor("#00FF00"));
             
@@ -152,23 +206,27 @@ public class MainActivity extends AppCompatActivity {
 
     private void toggleViewMode() {
         isGridView = !isGridView;
-        if (isGridView) {
-            fileListView.setVisibility(View.GONE);
-            fileGridView.setVisibility(View.VISIBLE);
-            btnToggleView.setText("תצוגת רשימה (List)");
-        } else {
-            fileGridView.setVisibility(View.GONE);
-            fileListView.setVisibility(View.VISIBLE);
-            btnToggleView.setText("תצוגת רשת (Grid)");
+        if (fileListView != null && fileGridView != null && btnToggleView != null) {
+            if (isGridView) {
+                fileListView.setVisibility(View.GONE);
+                fileGridView.setVisibility(View.VISIBLE);
+                btnToggleView.setText("תצוגת רשימה (List)");
+            } else {
+                fileGridView.setVisibility(View.GONE);
+                fileListView.setVisibility(View.VISIBLE);
+                btnToggleView.setText("תצוגת רשת (Grid)");
+            }
         }
     }
 
     private void handleSelection(int position) {
-        File selectedFile = fileList.get(position);
-        if (selectedFile.isDirectory()) {
-            appExplorer.loadDirectory(selectedFile, adapter);
-        } else {
-            showActionDialog(selectedFile);
+        if (fileList != null && position < fileList.size() && appExplorer != null && adapter != null) {
+            File selectedFile = fileList.get(position);
+            if (selectedFile.isDirectory()) {
+                appExplorer.loadDirectory(selectedFile, adapter);
+            } else {
+                showActionDialog(selectedFile);
+            }
         }
     }
 
@@ -191,13 +249,17 @@ public class MainActivity extends AppCompatActivity {
 
             switch (which) {
                 case 0:
-                    autoRunManager.saveScriptForAutoRun(file.getAbsolutePath());
+                    if (autoRunManager != null) {
+                        autoRunManager.saveScriptForAutoRun(file.getAbsolutePath());
+                    }
                     break;
                 case 1:
                     if (terminalContainer != null) {
                         terminalContainer.setVisibility(View.VISIBLE);
                     }
-                    scriptExecutor.executeInInternalTerminal(file.getAbsolutePath());
+                    if (scriptExecutor != null) {
+                        scriptExecutor.executeInInternalTerminal(file.getAbsolutePath());
+                    }
                     break;
                 case 2:
                     executeInAnyExternalTerminal(file);
@@ -242,8 +304,10 @@ public class MainActivity extends AppCompatActivity {
                     intent.setData(Uri.parse("package:" + getPackageName()));
                     startActivityForResult(intent, 101);
                 } catch (Exception e) {
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-                    startActivityForResult(intent, 101);
+                    try {
+                        Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                        startActivityForResult(intent, 101);
+                    } catch (Exception ignored) {}
                 }
             } else {
                 if (appExplorer != null && adapter != null) {
@@ -251,9 +315,16 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         } else {
-            if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, 102);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, 102);
+                } else {
+                    if (appExplorer != null && adapter != null) {
+                        appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
+                    }
+                }
             } else {
+                // באנדרואיד 4.4 ההרשאות מתקבלות אוטומטית בזמן ההתקנה מהמניפסט
                 if (appExplorer != null && adapter != null) {
                     appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
                 }
@@ -265,7 +336,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 101 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
-            appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
+            if (appExplorer != null && adapter != null) {
+                appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
+            }
         }
     }
 
@@ -273,13 +346,15 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == 102 && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
+            if (appExplorer != null && adapter != null) {
+                appExplorer.loadDirectory(Environment.getExternalStorageDirectory(), adapter);
+            }
         }
     }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
+        if (keyCode == KeyEvent.KEYCODE_BACK && appExplorer != null && adapter != null) {
             File parent = appExplorer.getCurrentDir().getParentFile();
             if (parent != null && !appExplorer.getCurrentDir().getAbsolutePath().equals(Environment.getExternalStorageDirectory().getAbsolutePath())) {
                 appExplorer.loadDirectory(parent, adapter);
